@@ -1,0 +1,70 @@
+name: "Factory Floor — InfluxDB UDP Demo"
+interval: 1.0
+
+sensors:
+  - name: motor_temp
+    type: temperature
+    base: 65.0
+    amplitude: 3.0
+    period: 600.0
+    noise: 0.5
+    drift_rate: 0.001
+    fault_prob: 0.0005
+    fault_spike: 20.0
+    tags:
+      location: "motor_A"
+      unit: "degC"
+
+  - name: hydraulic_pressure
+    type: pressure
+    base: 8.0
+    amplitude: 0.8
+    period: 90.0
+    noise: 0.1
+    fault_prob: 0.0003
+    fault_drop: 3.0
+    tags:
+      location: "hydraulic_line_1"
+      unit: "bar"
+
+  - name: pump_vibration
+    type: vibration
+    base: 0.03
+    noise: 0.008
+    fault_prob: 0.001
+    fault_spike: 0.8
+    tags:
+      location: "pump_B"
+      unit: "g_rms"
+
+  - name: line_current
+    type: current
+    base: 8.0
+    amplitude: 3.0
+    period: 86400.0
+    noise: 0.3
+    fault_prob: 0.0005
+    fault_spike: 15.0
+    tags:
+      location: "main_feeder"
+      unit: "A"
+
+  - name: bus_voltage
+    type: voltage
+    nominal: 380.0
+    noise: 2.0
+    fault_prob: 0.0005
+    fault_sag: 40.0
+    fault_swell: 30.0
+    tags:
+      location: "bus_bar"
+      unit: "V"
+
+outputs:
+  - type: console
+  - type: influxdb
+    measurement: "factory_floor"
+    host: "localhost"
+    port: 8089
+    protocol: "udp"
+    precision: "u"

@@ -18,8 +18,9 @@ A lightweight, **dependency-light** industrial sensor data simulator for testing
 | **5 sensor types** | Temperature, Pressure, Vibration, Current, Voltage — each with realistic physics |
 | **Signal models** | Base value + sinusoidal cycle + Gaussian noise + linear drift |
 | **Fault injection** | Configurable spike, drop, sag/swell probabilities — test your alerting |
-| **Multiple outputs** | Console (JSON lines), CSV append, MQTT publish |
+| **Multiple outputs** | Console (JSON lines), CSV append, MQTT publish, **InfluxDB Line Protocol** |
 | **YAML scenarios** | One config file defines all sensors, tags, and outputs |
+| **Grafana ready** | Bundled dashboard JSON for instant visualization |
 | **Pure Python** | Runs on anything that has Python 3.8+ (laptop, CI runner, ARM edge box) |
 | **Deterministic** | Optional RNG seed for repeatable test datasets |
 
@@ -68,13 +69,6 @@ sensors:
       machine: "compressor_01"
       unit: "degC"
 
-  - name: discharge_pressure
-    type: pressure
-    base: 12.0
-    noise: 0.2
-    tags:
-      unit: "bar"
-
 outputs:
   - type: console
   - type: csv
@@ -101,6 +95,60 @@ outputs:
 | `console` | — | — |
 | `csv` | `filepath` | — |
 | `mqtt` | `broker` | `port` (1883), `topic` (`sensors/data`), `client_id`, `qos` (0), `username`, `password` |
+| `influxdb` | — | `measurement` (`sensor_data`), `host` (`localhost`), `port` (8089), `protocol` (`udp`), `database` (`industrial`), `precision` (`u`), `username`, `password` |
+
+## InfluxDB + Grafana Stack
+
+The simulator can feed directly into **InfluxDB** via Line Protocol, and a pre-built **Grafana dashboard** is included.
+
+### 1. Start InfluxDB (Docker example)
+
+```bash
+$ docker run -d \
+  --name influxdb \
+  -p 8086:8086 -p 8089:8089/udp \
+  -e INFLUXDB_DB=industrial \
+  -e INFLUXDB_UDP_ENABLED=true \
+  -e INFLUXDB_UDP_BIND_ADDRESS=:8089 \
+  influxdb:1.8
+```
+
+### 2. Run the simulator with InfluxDB output
+
+```bash
+$ python ts_sim.py scenarios/influxdb_udp.yaml --duration 120
+```
+
+### 3. Import the Grafana dashboard
+
+1. Open Grafana → **Create** → **Import**.
+2. Upload `dashboards/grafana_factory_floor.json`.
+3. Select your InfluxDB data source.
+4. Enjoy live sensor panels with color-coded thresholds.
+
+The dashboard includes:
+
+- **5 live stat tiles** — current value with color thresholds (green → orange → red)
+- **5 trend graphs** — time-series history with mean / max / min aggregations
+- **Auto-refresh** — updates every 5 seconds
+
+### InfluxDB Output Config Reference
+
+```yaml
+outputs:
+  - type: influxdb
+    measurement: "factory_floor"   # InfluxDB measurement name
+    host: "localhost"              # InfluxDB host
+    port: 8089                     # 8089 for UDP, 8086 for HTTP
+    protocol: "udp"                # "udp" or "http"
+    database: "industrial"         # Only used for HTTP
+    precision: "u"                 # s | ms | u (μs) | ns
+    # username: "admin"            # HTTP basic-auth (optional)
+    # password: "secret"
+```
+
+> **Note:** UDP is the default because it requires **zero extra Python packages**
+> (standard-library `socket` only). For HTTP, install `requests`.
 
 ## Running with MQTT
 
@@ -139,8 +187,10 @@ generators/        ← Sensor signal models
 outputs/           ← Sink adapters
   ├── csv_out.py
   ├── mqtt_out.py
+  ├── influxdb_out.py
   └── console_out.py
 scenarios/         ← Example YAML configs
+dashboards/        ← Grafana dashboard JSON
 ```
 
 Adding a new sensor type is two steps:
