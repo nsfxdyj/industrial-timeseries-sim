@@ -18,7 +18,7 @@ A lightweight, **dependency-light** industrial sensor data simulator for testing
 | **5 sensor types** | Temperature, Pressure, Vibration, Current, Voltage — each with realistic physics |
 | **Signal models** | Base value + sinusoidal cycle + Gaussian noise + linear drift |
 | **Fault injection** | Configurable spike, drop, sag/swell probabilities — test your alerting |
-| **Multiple outputs** | Console (JSON lines), CSV append, MQTT publish, **InfluxDB Line Protocol** |
+| **Multiple outputs** | Console (JSON lines), CSV append, MQTT publish, InfluxDB Line Protocol, **Modbus TCP Slave** |
 | **YAML scenarios** | One config file defines all sensors, tags, and outputs |
 | **Grafana ready** | Bundled dashboard JSON for instant visualization |
 | **Pure Python** | Runs on anything that has Python 3.8+ (laptop, CI runner, ARM edge box) |
@@ -96,6 +96,7 @@ outputs:
 | `csv` | `filepath` | — |
 | `mqtt` | `broker` | `port` (1883), `topic` (`sensors/data`), `client_id`, `qos` (0), `username`, `password` |
 | `influxdb` | — | `measurement` (`sensor_data`), `host` (`localhost`), `port` (8089), `protocol` (`udp`), `database` (`industrial`), `precision` (`u`), `username`, `password` |
+| `modbus_tcp` | — | `port` (502), `unit_id` (1), `scale_factor` (100) |
 
 ## InfluxDB + Grafana Stack
 
@@ -150,6 +151,49 @@ outputs:
 > **Note:** UDP is the default because it requires **zero extra Python packages**
 > (standard-library `socket` only). For HTTP, install `requests`.
 
+## Modbus TCP Slave
+
+The simulator can act as a **Modbus TCP slave** (server), exposing sensor values as holding registers. Perfect for testing SCADA/HMI integrations without a real PLC.
+
+### Quick test
+
+```bash
+# Terminal 1 — start the simulator with Modbus TCP output
+$ python ts_sim.py scenarios/modbus_tcp.yaml --duration 120
+
+# Terminal 2 — read registers with mbpoll or any Modbus master
+$ mbpoll -m tcp -a 1 -r 1 -c 3 localhost:1502
+# or use pymodbus:
+$ python -c "
+from pymodbus.client import ModbusTcpClient
+c = ModbusTcpClient('localhost', port=1502)
+c.connect()
+rr = c.read_holding_registers(0, 3, slave=1)
+print(rr.registers)  # [6784, 552, 38012]  ← scaled by 100
+"
+```
+
+### How register mapping works
+
+- Each sensor is auto-assigned to a sequential holding register address (`0, 1, 2…`)
+- The raw float value is multiplied by `scale_factor` (default `100`) and cast to `uint16`
+- Example: `temperature = 67.84 °C` → `register = 6784`
+- On the client side, divide by `scale_factor` to recover the original value
+
+### Modbus TCP Config Reference
+
+```yaml
+outputs:
+  - type: modbus_tcp
+    port: 1502          # TCP listen port (use >1024 for non-root)
+    unit_id: 1          # Modbus slave/unit ID
+    scale_factor: 100   # value multiplier before uint16 cast
+```
+
+> **Note:** Modbus TCP output uses **only the Python standard library** (`socket` + `threading`). No extra packages required.
+>
+> The implementation supports **Function Code 03** (Read Holding Registers) only, which covers the vast majority of SCADA polling use-cases.
+
 ## Running with MQTT
 
 ```yaml
@@ -179,24 +223,23 @@ $ pytest tests/ -v
 ts_sim.py          ← CLI entry point & main loop
 config.py          ← YAML scenario loader
 generators/        ← Sensor signal models
-  ├── temperature.py
-  ├── pressure.py
-  ├── vibration.py
-  ├── current.py
-  └── voltage.py
+  ├── __init__.py  (temperature, pressure, vibration, current, voltage)
 outputs/           ← Sink adapters
-  ├── csv_out.py
-  ├── mqtt_out.py
-  ├── influxdb_out.py
-  └── console_out.py
+  ├── __init__.py  (csv, mqtt, console, influxdb, modbus_tcp)
+  └── modbus_tcp.py
 scenarios/         ← Example YAML configs
 dashboards/        ← Grafana dashboard JSON
 ```
 
 Adding a new sensor type is two steps:
 
-1. Subclass `BaseGenerator` in `generators/`.
-2. Register it in `generators/__init__.py`.
+1. Subclass `BaseGenerator` in `generators/__init__.py`.
+2. Register it in `_GENERATOR_MAP`.
+
+Adding a new output type is similar:
+
+1. Implement a class with `open()`, `write(record)`, `close()` in `outputs/`.
+2. Register it in `_OUTPUT_MAP` inside `outputs/__init__.py`.
 
 ## License
 
