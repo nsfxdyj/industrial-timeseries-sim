@@ -8,6 +8,8 @@ import os
 import socket
 from datetime import datetime, timezone
 
+from outputs.modbus_tcp import ModbusTcpOutput
+
 
 class BaseOutput:
     """Abstract base for all output sinks."""
@@ -257,6 +259,7 @@ _OUTPUT_MAP = {
     "mqtt": MqttOutput,
     "console": ConsoleOutput,
     "influxdb": InfluxDbOutput,
+    "modbus_tcp": ModbusTcpOutput,
 }
 
 

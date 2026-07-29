@@ -1,0 +1,46 @@
+name: "Modbus TCP Slave Demo"
+interval: 1.0
+
+sensors:
+  - name: motor_temp
+    type: temperature
+    base: 68.0
+    amplitude: 3.0
+    period: 120.0
+    noise: 0.3
+    drift_rate: 0.01
+    fault_prob: 0.002
+    fault_spike: 20.0
+    tags:
+      location: "motor_A"
+      unit: "degC"
+
+  - name: hydraulic_pressure
+    type: pressure
+    base: 5.5
+    amplitude: 0.3
+    period: 60.0
+    noise: 0.05
+    fault_prob: 0.001
+    fault_drop: 1.5
+    tags:
+      location: "pump_01"
+      unit: "bar"
+
+  - name: bus_voltage
+    type: voltage
+    nominal: 380.0
+    noise: 1.0
+    fault_prob: 0.001
+    fault_sag: 30.0
+    fault_swell: 25.0
+    tags:
+      location: "bus_bar"
+      unit: "V"
+
+outputs:
+  - type: console
+  - type: modbus_tcp
+    port: 1502          # use >1024 to avoid running as root
+    unit_id: 1
+    scale_factor: 100   # 67.84 → register 6784
