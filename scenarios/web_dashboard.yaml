@@ -1,0 +1,66 @@
+name: "Web Dashboard Demo"
+interval: 1.0
+
+sensors:
+  - name: motor_temp
+    type: temperature
+    base: 65.0
+    amplitude: 3.0
+    period: 60.0
+    noise: 0.4
+    drift_rate: 0.01
+    fault_prob: 0.005
+    fault_spike: 20.0
+    tags:
+      location: "motor_A"
+      unit: "degC"
+
+  - name: hydraulic_pressure
+    type: pressure
+    base: 5.5
+    amplitude: 0.3
+    period: 45.0
+    noise: 0.03
+    fault_prob: 0.003
+    fault_drop: 2.0
+    tags:
+      location: "pump_01"
+      unit: "bar"
+
+  - name: bearing_vibration
+    type: vibration
+    base: 0.025
+    noise: 0.008
+    fault_prob: 0.008
+    fault_spike: 0.4
+    tags:
+      location: "bearing_X"
+      unit: "g RMS"
+
+  - name: line_current
+    type: current
+    base: 6.0
+    amplitude: 1.5
+    period: 120.0
+    noise: 0.15
+    fault_prob: 0.004
+    fault_spike: 12.0
+    tags:
+      location: "feeder_01"
+      unit: "A"
+
+  - name: bus_voltage
+    type: voltage
+    nominal: 380.0
+    noise: 1.5
+    fault_prob: 0.003
+    fault_sag: 40.0
+    fault_swell: 25.0
+    tags:
+      location: "bus_bar"
+      unit: "V"
+
+outputs:
+  - type: console
+  - type: web_dashboard
+    port: 8080
