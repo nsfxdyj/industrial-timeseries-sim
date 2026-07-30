@@ -18,7 +18,7 @@ A lightweight, **dependency-light** industrial sensor data simulator for testing
 | **5 sensor types** | Temperature, Pressure, Vibration, Current, Voltage — each with realistic physics |
 | **Signal models** | Base value + sinusoidal cycle + Gaussian noise + linear drift |
 | **Fault injection** | Configurable spike, drop, sag/swell probabilities — test your alerting |
-| **Multiple outputs** | Console (JSON lines), CSV append, MQTT publish, InfluxDB Line Protocol, **Modbus TCP Slave** |
+| **Multiple outputs** | Console (JSON lines), CSV append, MQTT publish, InfluxDB Line Protocol, Modbus TCP Slave, **Web Dashboard** |
 | **YAML scenarios** | One config file defines all sensors, tags, and outputs |
 | **Grafana ready** | Bundled dashboard JSON for instant visualization |
 | **Pure Python** | Runs on anything that has Python 3.8+ (laptop, CI runner, ARM edge box) |
@@ -97,6 +97,7 @@ outputs:
 | `mqtt` | `broker` | `port` (1883), `topic` (`sensors/data`), `client_id`, `qos` (0), `username`, `password` |
 | `influxdb` | — | `measurement` (`sensor_data`), `host` (`localhost`), `port` (8089), `protocol` (`udp`), `database` (`industrial`), `precision` (`u`), `username`, `password` |
 | `modbus_tcp` | — | `port` (502), `unit_id` (1), `scale_factor` (100) |
+| `web_dashboard` | — | `host` (`0.0.0.0`), `port` (8080) |
 
 ## InfluxDB + Grafana Stack
 
@@ -194,6 +195,35 @@ outputs:
 >
 > The implementation supports **Function Code 03** (Read Holding Registers) only, which covers the vast majority of SCADA polling use-cases.
 
+## Web Dashboard (Built-in)
+
+No Grafana? No InfluxDB? No problem. The simulator now includes a **zero-dependency web dashboard** served directly from Python.
+
+### Quick start
+
+```bash
+$ python ts_sim.py scenarios/web_dashboard.yaml --duration 120
+# Open http://localhost:8080 in your browser
+```
+
+You get a live, dark-themed dashboard with:
+
+- **Per-sensor cards** — current value, unit, location, and real-time status badge (Normal / Warning / Alarm)
+- **Sparkline mini-charts** — 60-sample rolling history rendered on HTML5 Canvas
+- **Smart thresholds** — each sensor type has built-in color bands (green → orange → red)
+- **Server-Sent Events** — pure HTTP streaming, no WebSocket library needed
+
+### Web Dashboard Config Reference
+
+```yaml
+outputs:
+  - type: web_dashboard
+    host: "0.0.0.0"   # Bind address
+    port: 8080        # HTTP port
+```
+
+> **Note:** The dashboard is entirely self-contained — the HTML, CSS, and JavaScript are embedded in the Python module, so there are no external static files to manage.
+
 ## Running with MQTT
 
 ```yaml
@@ -225,8 +255,9 @@ config.py          ← YAML scenario loader
 generators/        ← Sensor signal models
   ├── __init__.py  (temperature, pressure, vibration, current, voltage)
 outputs/           ← Sink adapters
-  ├── __init__.py  (csv, mqtt, console, influxdb, modbus_tcp)
-  └── modbus_tcp.py
+  ├── __init__.py  (csv, mqtt, console, influxdb, modbus_tcp, web_dashboard)
+  ├── modbus_tcp.py
+  └── web_dashboard.py
 scenarios/         ← Example YAML configs
 dashboards/        ← Grafana dashboard JSON
 ```
@@ -240,6 +271,10 @@ Adding a new output type is similar:
 
 1. Implement a class with `open()`, `write(record)`, `close()` in `outputs/`.
 2. Register it in `_OUTPUT_MAP` inside `outputs/__init__.py`.
+
+## CI
+
+Every push and PR is tested on Python 3.9, 3.11, and 3.12 via GitHub Actions.
 
 ## License
 
