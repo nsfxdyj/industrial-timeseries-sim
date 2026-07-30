@@ -9,6 +9,7 @@ import socket
 from datetime import datetime, timezone
 
 from outputs.modbus_tcp import ModbusTcpOutput
+from outputs.web_dashboard import WebDashboardOutput
 
 
 class BaseOutput:
@@ -260,6 +261,7 @@ _OUTPUT_MAP = {
     "console": ConsoleOutput,
     "influxdb": InfluxDbOutput,
     "modbus_tcp": ModbusTcpOutput,
+    "web_dashboard": WebDashboardOutput,
 }
 
 
